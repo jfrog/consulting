@@ -13,7 +13,7 @@ if [ -z "$1" ] || [ -z "$2"  ] || [ -z "$3" ] ; then
     usage
 fi
 
-
+apk add --no-cache gnupg
 gpg --pinentry-mode=loopback --passphrase "" --quiet --batch --no-tty --gen-key gen-key-params
 
 # Find the latest key.
