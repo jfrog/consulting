@@ -1,2 +1,2 @@
-# in-person-training
+# consulting
 in-person training
