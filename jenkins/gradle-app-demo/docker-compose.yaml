@@ -1,0 +1,28 @@
+version: "2.1"
+services:
+  mongo:
+    image: mongo:3.2.4
+    ports:
+    - 27017:27017
+    command: --smallfiles
+
+  mongo-client:
+    image: mongoclient/mongoclient
+    ports:
+    - 3030:3000
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+    links:
+      - mongo
+
+  spring-boot-mongo:
+    build: .
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - ~/.m2:/root/.m2
+    ports:
+    - 8080:8080
+    links:
+    - mongo
+    entrypoint: gradle bootRun
