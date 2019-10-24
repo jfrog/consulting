@@ -4,7 +4,7 @@ set -e
 usage() {
     echo "Set pgp keys"
     echo 'Usage: $1 distribution IP'
-    echo 'Usage: $2 china artifactory IP'
+    echo 'Usage: $2 US artifactory IP'
     echo 'Usage: $3 london edge IP'
     exit 1
 }
