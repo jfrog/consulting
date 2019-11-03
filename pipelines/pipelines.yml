@@ -1,0 +1,146 @@
+resources:
+  - name: goservice_gitRepo_demo
+    type: GitRepo
+    configuration:
+      path: eladh/pipeline-webinar-demo
+      gitProvider: git
+
+  - name: svc_build_info_demo
+    type: BuildInfo
+    configuration:
+      sourceArtifactory: art
+      buildName: svc_build
+      buildNumber: 1
+
+  - name: svc_promoted_build_info_demo
+    type: BuildInfo
+    configuration:
+      sourceArtifactory: art
+      buildName: svc_build
+      buildNumber: 1
+
+
+  - name: releaseBundle_demo
+    type: ReleaseBundle
+    configuration:
+      sourceDistribution: dist
+      name: go-app-bundle
+      version: v3.0.0
+
+  - name: signedBundle_demo
+    type: ReleaseBundle
+    configuration:
+      sourceDistribution: dist
+      name: go-app-bundle
+      version: v3.0.0
+
+  - name: distributionRules_demo
+    type: DistributionRule
+    configuration:
+      sourceDistribution: dist
+      serviceName: "*"
+      siteName: "England"
+      cityName: "*"
+      countryCodes:
+        - "*"
+
+  - name: deploy_vm_demo
+    type: VmCluster
+    configuration:
+      sshKey: deploy_ssh
+      targets:
+        - 34.69.49.48
+
+pipelines:
+  - name: service
+    steps:
+      - name: bld_svc_demo
+        type: DockerBuild
+        configuration:
+          dockerFileLocation: demo/swampup-go-service
+          dockerFileName: Dockerfile
+          dockerImageName: docker.artifactory.yallapipeline.yallapipeline/gosvc
+          dockerImageTag: $run_number
+          inputResources:
+            - name: goservice_gitRepo_demo
+          integrations:
+            - name: art
+
+      - name: push_svc_demo
+        type: DockerPush
+        configuration:
+          targetRepository: docker-local
+          integrations:
+            - name: art
+          inputSteps:
+            - name: bld_svc_demo
+
+      - name: publish_svc_build_demo
+        type: PublishBuildInfo
+        configuration:
+          inputSteps:
+            - name: push_svc_demo
+          outputResources:
+            - name: svc_build_info_demo
+
+      - name: promote_svc_build_demo
+        type: PromoteBuild
+        configuration:
+          targetRepository: docker-prod-local
+          integrations:
+            - name: art
+          inputResources:
+            - name: svc_build_info_demo
+          outputResources:
+            - name: svc_promoted_build_info_demo
+
+  - name: release
+    steps:
+      - name: bundle
+        type: CreateReleaseBundle
+        configuration:
+          releaseBundleName: go-app-bundle
+          releaseBundleVersion: v3.0.$run_number
+          dryRun: false
+          sign: false
+          description: "some random test description"
+          inputResources:
+            - name: svc_promoted_build_info_demo
+              trigger: false
+          outputResources:
+            - name: releaseBundle_demo
+
+      - name: sign_demo
+        type: SignReleaseBundle
+        configuration:
+          inputResources:
+            - name: releaseBundle_demo
+          outputResources:
+            - name: signedBundle_demo
+
+      - name: distribute
+        type: DistributeReleaseBundle
+        configuration:
+          dryRun: false
+          inputResources:
+            - name: signedBundle_demo
+            - name: distributionRules_demo
+          integrations:
+            - name: dist
+
+      - name: deploy
+        type: Bash
+        configuration:
+          environmentVariables:
+            artifactory_address: docker.artifactory.yallapipeline.yallapipeline
+          integrations:
+            - name: art
+          inputResources:
+            - name: deploy_vm_demo
+            - name: svc_promoted_build_info_demo
+              trigger: false
+          inputSteps:
+            - name: distribute
+        execution:
+          onExecute:
+            - ssh -i ~/.ssh/deploy_vm_demo eladh@${res_deploy_vm_demo_targets_0} sudo /home/eladh/deploy-to-prod.sh $artifactory_address $int_art_apikey $res_svc_promoted_build_info_demo_buildNumber

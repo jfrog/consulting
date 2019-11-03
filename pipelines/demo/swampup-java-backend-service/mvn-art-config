@@ -1,0 +1,10 @@
+version: 1
+type: maven
+resolver:
+  snapshotRepo: maven-remote
+  releaseRepo: maven-remote
+  serverID: art
+deployer:
+  snapshotRepo: maven-local
+  releaseRepo: maven-local
+  serverID: art
